@@ -26,7 +26,7 @@ for i in range(0, 247):
     offset = pointers[i] + 0x4000 * banks[i]
     offsets.append(offset)
     banks_map[offset] = banks[i]
-print(banks_map)
+#print(banks_map[0x182A1])
 
 for offset in offsets:
     if(offset != 0x45CE5 and offset != 0x56B2 and offset != 0x762A2 and offset != 0x49A4 and offset != 0x5704):
@@ -35,7 +35,10 @@ for offset in offsets:
         height = int.from_bytes(list(romfile.read(1)),"little")
         width = int.from_bytes(list(romfile.read(1)),"little")
         pointer_map = int.from_bytes(list(romfile.read(2)),"little")
-        abs_pointer_map = pointer_map + 0x4000 * banks_map[offset]
+        abs_pointer_map = pointer_map % 0x4000 + 0x4000 * banks_map[offset]
+        if(offset == 0x182A1):
+            print(hex(abs_pointer_map))
+            print(hex(pointer_map))
 
         if(abs_pointer_map != 0):
             datafile = open('out/'+str(hex(offset))+'.json','w')

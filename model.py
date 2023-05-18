@@ -1,8 +1,6 @@
-import glob
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import PIL
 from tensorflow.keras import layers
 import time
 
@@ -27,34 +25,35 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 def make_generator_model():
     model = tf.keras.Sequential()
-    model.add(layers.Dense(20*20*100, use_bias=False, input_shape=(100,)))
-    model.add(layers.BatchNormalization())
-    #model.add(layers.LeakyReLU())
-
-    model.add(layers.Reshape((20, 20, 100)))
-    assert model.output_shape == (None, 20, 20, 100)  # Note: None is the batch size
-
-    model.add(layers.Conv2DTranspose(50, (20, 20), padding='same', use_bias=False))
-    print(model.output_shape)
-    assert model.output_shape == (None, 20, 20, 50)
+    model.add(layers.Dense(60*60*100, use_bias=False, input_shape=(100,)))
     model.add(layers.BatchNormalization())
     model.add(layers.LeakyReLU())
 
-    model.add(layers.Conv2DTranspose(25, (20, 20), strides=(2, 2), padding='same', use_bias=False))
+    model.add(layers.Reshape((60, 60, 100)))
+    assert model.output_shape == (None, 60, 60, 100) # Note: None is the batch size
+
+    model.add(layers.Conv2DTranspose(50, (60, 60), padding='same', use_bias=False))
     print(model.output_shape)
-    assert model.output_shape == (None, 40, 40, 25)
+    assert model.output_shape == (None, 60, 60, 50)
     model.add(layers.BatchNormalization())
     model.add(layers.LeakyReLU())
 
-    model.add(layers.Conv2DTranspose(1, (20, 20), strides=(2, 2), padding='same', use_bias=False, activation='tanh'))
+    model.add(layers.Conv2DTranspose(25, (60, 60), strides=(2, 2), padding='same', use_bias=False))
     print(model.output_shape)
-    assert model.output_shape == (None, 80, 80, 1)
+    assert model.output_shape == (None, 120, 120, 25)
+    model.add(layers.BatchNormalization())
+    model.add(layers.LeakyReLU())
+
+    model.add(layers.Conv2DTranspose(1, (20, 20), strides=(2, 2), padding='same', use_bias=False, activation='sigmoid'))
+    print(model.output_shape)
+    assert model.output_shape == (None, 240, 240, 1)
+    #model.add(layers.Sigmoid())
 
     return model
 
 def make_discriminator_model():
     model = tf.keras.Sequential()
-    model.add(layers.Conv2D(25, (20, 20), strides=(2, 2), padding='same',input_shape=(80,80,1)) )
+    model.add(layers.Conv2D(25, (20, 20), strides=(2, 2), padding='same',input_shape=(240,240,1)) )
     model.add(layers.LeakyReLU())
     model.add(layers.Dropout(0.5))
 
@@ -69,6 +68,7 @@ def make_discriminator_model():
 
     model.add(layers.Flatten())
     model.add(layers.Dense(1))
+    #model.add(layers.Sigmoid())
 
     return model
 
@@ -132,7 +132,9 @@ def generate_and_save_images(model, epoch, test_input):
     # This is so all layers run in inference mode (batchnorm).
     predictions = model(test_input, training=False)
     out = open('tfout/'+str(epoch)+'.json','w')
-    out.write(json.dumps(predictions.numpy().tolist()))
+    reducer = lambda x: int(x * 127.5 + 127.5)
+    data = np.apply_along_axis(reducer, 3, predictions.numpy())
+    out.write(json.dumps(data.tolist()))
 
 
 map_matrix = {
@@ -163,6 +165,8 @@ map_matrix = {
 }
 paths = list(os.scandir("./out"))
 
+# Filling the matrix
+
 for j in range(len(paths)):
     if paths[j].is_file():
         file = open('out/'+paths[j].name, 'r')
@@ -174,7 +178,7 @@ for j in range(len(paths)):
             map_matrix[tileset][pos].append([])
             for k in range(0,data['width']):
                 map_matrix[tileset][pos][i].append([data['map_data'][i*data['width']+k]])
-
+            
 
 generator = make_generator_model()
 
@@ -186,21 +190,26 @@ discriminator = make_discriminator_model()
 decision = discriminator(generated_map)
 print (decision)
 
-
+# Porting to array 
 seed = tf.random.normal([num_examples_to_generate, noise_dim], mean=80,stddev=100)
 print(seed.shape)
 for i in range(len(map_matrix['0'])):
-    if len(map_matrix['0'][i]) < 80:
-        while len(map_matrix['0'][i]) < 80:
-            map_matrix['0'][i].append([[-1]] * 80)
+    if len(map_matrix['0'][i]) < 240:
+        while len(map_matrix['0'][i]) < 240:
+            map_matrix['0'][i].append([[-1]] * 240)
     for k in range(len(map_matrix['0'][i])):
-        if(len(map_matrix['0'][i][k]) < 80):
-            while len(map_matrix['0'][i][k]) < 80:
-                map_matrix['0'][i][k] += ([[-1]] * (80 - len(map_matrix['0'][i][k])))
+        if(len(map_matrix['0'][i][k]) < 240):
+            while len(map_matrix['0'][i][k]) < 240:
+                map_matrix['0'][i][k] += ([[-1]])
+        elif len(map_matrix['0'][i][k]) > 240:
+            map_matrix['0'][i][k] = map_matrix['0'][i][k][0:240]
 
+
+
+print(len(map_matrix['0'][0][0]))
 
 np_matrix_tile0 = np.asarray(map_matrix['0']).astype('float32')
-np_matrix_tile0 = np_matrix_tile0.reshape((-1,34,80,80,1))
+np_matrix_tile0 = np_matrix_tile0.reshape((-1,544,240,240,1))
 print(np_matrix_tile0.shape)
 #print(np_matrix_tile0.tolist()[0][0])
 train(np_matrix_tile0, EPOCHS)
