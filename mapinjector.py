@@ -18,17 +18,17 @@ romfile.write(bytes([9]))
 romfile.write(bytes([52]))
 abs_pointer = 0x182FD#0x1C2FD#0x4000 * PALLET_TOWN_BANK + PALLET_TOWN_OBJ_OFFSET
 
-datafile = open("./out/0x1a19d_augm.json","r") #./tfout/final.json
+datafile = open("./tfout/final.json","r") #
 map_data = json.loads(datafile.readline())
 datafile.close()
 
 town_to_push = map_data['map_data']
-print(town_to_push)
+#print(town_to_push)
 romfile.seek(abs_pointer, 0)
 for row in town_to_push:
-    #for asset in row:
+    for asset in row:
         #print(int(str(asset).encode()))
-        romfile.write(bytes([row])) 
+        romfile.write(bytes([asset])) 
 romfile.close()
 
 
