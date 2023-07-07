@@ -193,6 +193,8 @@ print (decision)
 # Porting to array 
 seed = tf.random.normal([num_examples_to_generate, noise_dim], mean=80,stddev=100)
 print(seed.shape)
+
+#Bringing each sample to the dimensions of 240 x 240
 for i in range(len(map_matrix['0'])):
     if len(map_matrix['0'][i]) < 240:
         while len(map_matrix['0'][i]) < 240:
